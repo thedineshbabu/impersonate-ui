@@ -1,0 +1,69 @@
+---
+alwaysApply: true
+---
+
+# cursor.mdc.yml
+
+project:
+  name: Impersonate UI
+  description: RBAC and user management UI for Korn Ferry Talent Suite
+
+standards:
+  language: TypeScript
+  framework: React
+  styling: TailwindCSS
+  ui_library: shadcn/ui
+  icons: lucide-react
+  routing: react-router-dom
+  state_management: React Context API
+  authentication: Keycloak
+
+best_practices:
+  - Use functional React components and hooks
+  - Use TypeScript for all code (no .js files)
+  - Use Tailwind utility classes for styling; avoid custom CSS unless necessary
+  - Use shadcn/ui components for UI consistency
+  - Use React Context for global state (e.g., Auth)
+  - Use React Router for navigation
+  - Use descriptive, concise, and JSDoc-style comments
+  - Keep components small and focused (SRP)
+  - Prefer composition over inheritance
+  - Use environment variables for secrets/config
+  - Use async/await for async code
+  - Validate all user input
+  - Write unit tests for all logic and components
+  - Use Prettier and ESLint for formatting and linting
+  - Use meaningful commit messages
+
+folder_structure:
+  - src/components: All React components
+  - src/components/ui: UI primitives (from shadcn/ui)
+  - src/lib: Utility functions
+  - src: Feature modules, context, and main app files
+
+naming_conventions:
+  - Components: PascalCase (e.g., UserDetails.tsx)
+  - Files: camelCase or kebab-case (except components)
+  - Variables/functions: camelCase
+  - Constants: UPPER_SNAKE_CASE
+
+security:
+  - Never commit secrets or credentials
+  - Use HTTPS for all API calls
+  - Sanitize all user input
+  - Use secure authentication flows (Keycloak)
+
+accessibility:
+  - All interactive elements must be keyboard accessible
+  - Use semantic HTML where possible
+  - Provide alt text for all images/icons
+
+performance:
+  - Avoid unnecessary re-renders (use React.memo/useMemo/useCallback)
+  - Lazy-load routes and heavy components
+  - Optimize images and assets
+
+documentation:
+  - Keep README up to date
+  - Document all public functions/components with JSDoc
+  - Maintain a PRD (Product Requirements Doc) 

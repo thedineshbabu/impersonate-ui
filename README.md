@@ -1,4 +1,26 @@
-# Getting Started with Create React App
+# KF Platform Talent Suite
+
+A React application for user impersonation functionality with Keycloak integration.
+
+## Environment Configuration
+
+This application requires several environment variables to be configured. Copy the `.env.example` file to `.env` and update the values according to your Keycloak setup:
+
+```bash
+cp .env.example .env
+```
+
+### Required Environment Variables
+
+- `REACT_APP_KEYCLOAK_URL`: Your Keycloak server URL (e.g., `http://localhost:8080`)
+- `REACT_APP_KEYCLOAK_REALM`: Your Keycloak realm name (e.g., `kfone`)
+- `REACT_APP_KEYCLOAK_CLIENT_ID`: Your Keycloak client ID (e.g., `web-app`)
+- `REACT_APP_IMPERSONATION_CLIENT_ID`: Client ID for impersonation (e.g., `pf001`)
+- `REACT_APP_IMPERSONATION_CLIENT_SECRET`: Client secret for impersonation
+
+**Important**: Never commit the `.env` file to version control as it contains sensitive information. The `.env` file is already included in `.gitignore`.
+
+## Getting Started
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
