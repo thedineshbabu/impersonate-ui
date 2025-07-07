@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../AuthContext';
+import { useAuthStore, useCurrentUser } from '../stores/authStore';
 import keycloak from '../keycloak';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -15,7 +15,8 @@ const ImpersonateUser: React.FC = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
-  const { isImpersonating, impersonatedUserEmail } = useAuth();
+  const { isImpersonating, startImpersonation, stopImpersonation } = useAuthStore();
+  const currentUser = useCurrentUser();
 
   // Pre-fill email from query param
   useEffect(() => {
@@ -98,6 +99,13 @@ const ImpersonateUser: React.FC = () => {
         keycloak.token = tokenData.access_token;
         keycloak.refreshToken = tokenData.refresh_token;
 
+        // Start impersonation in Zustand store
+        startImpersonation({
+          email: email,
+          firstName: users[0].firstName || '',
+          lastName: users[0].lastName || ''
+        });
+
         // Trigger token update event
         keycloak.onTokenExpired && keycloak.onTokenExpired();
 
@@ -116,9 +124,8 @@ const ImpersonateUser: React.FC = () => {
   };
 
   const handleStopImpersonating = () => {
-    // Clear impersonated tokens
-    localStorage.removeItem('impersonated_token');
-    localStorage.removeItem('impersonated_user_email');
+    // Stop impersonation in Zustand store
+    stopImpersonation();
 
     // Refresh the page to reset keycloak state
     window.location.reload();
@@ -138,12 +145,12 @@ const ImpersonateUser: React.FC = () => {
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {isImpersonating && impersonatedUserEmail && (
+          {isImpersonating && currentUser.email && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
                 <div className="font-medium mb-2">Currently Impersonating</div>
-                <p>You are currently impersonating: <strong>{impersonatedUserEmail}</strong></p>
+                <p>You are currently impersonating: <strong>{currentUser.email}</strong></p>
                 <Button 
                   variant="outline" 
                   size="sm" 
