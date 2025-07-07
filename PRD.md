@@ -1,10 +1,10 @@
 # Product Requirements Document (PRD)
-## Impersonate UI - User Management & Access Control System
+## KFone Platform UI - User Management & Access Control System
 
 ### Document Information
 - **Document Version**: 1.0
 - **Date**: January 2024
-- **Project**: Impersonate UI
+- **Project**: KFone Platform UI
 - **Product Owner**: Development Team
 - **Stakeholders**: System Administrators, Client Managers, HR Teams
 
@@ -13,7 +13,7 @@
 ## 1. Executive Summary
 
 ### 1.1 Product Overview
-The Impersonate UI is a comprehensive user management and access control system designed for enterprise-level client management. The system provides secure user impersonation capabilities, granular permission management, and resource control across multiple products and geographical regions.
+The KFone Platform UI is a comprehensive user management and access control system designed for enterprise-level client management. The system provides secure user impersonation capabilities, granular permission management, and resource control across multiple products and geographical regions.
 
 ### 1.2 Business Objectives
 - **Security Enhancement**: Provide secure user impersonation for troubleshooting and support
@@ -419,7 +419,7 @@ To create a secure, scalable, and user-friendly platform that empowers administr
 
 ## 14. Conclusion
 
-The Impersonate UI project represents a comprehensive solution for enterprise user management and access control. With its modern technology stack, robust feature set, and focus on security and usability, the system is well-positioned to meet the current and future needs of enterprise organizations.
+The KFone Platform UI project represents a comprehensive solution for enterprise user management and access control. With its modern technology stack, robust feature set, and focus on security and usability, the system is well-positioned to meet the current and future needs of enterprise organizations.
 
 The modular architecture and scalable design ensure that the system can grow and adapt to changing business requirements while maintaining the highest standards of security and performance.
 

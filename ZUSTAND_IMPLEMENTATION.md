@@ -1,8 +1,8 @@
-# Zustand Implementation in Impersonate UI
+# Zustand Implementation in KFone Platform UI
 
 ## Overview
 
-This document describes the implementation of Zustand state management in the Impersonate UI project. Zustand has been integrated to replace React Context API for better performance, simplicity, and developer experience.
+This document describes the implementation of Zustand state management in the KFone Platform UI project. Zustand has been integrated to replace React Context API for better performance, simplicity, and developer experience.
 
 ## Why Zustand?
 
@@ -406,7 +406,7 @@ describe('Auth Store', () => {
 
 ## Conclusion
 
-Zustand provides a modern, performant, and developer-friendly approach to state management in the Impersonate UI project. The modular store architecture, TypeScript support, and DevTools integration make it an excellent choice for managing complex application state.
+Zustand provides a modern, performant, and developer-friendly approach to state management in the KFone Platform UI project. The modular store architecture, TypeScript support, and DevTools integration make it an excellent choice for managing complex application state.
 
 The implementation demonstrates:
 - Clean separation of concerns

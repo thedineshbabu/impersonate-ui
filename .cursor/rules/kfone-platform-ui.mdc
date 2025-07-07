@@ -5,7 +5,7 @@ alwaysApply: true
 # cursor.mdc.yml
 
 project:
-  name: Impersonate UI
+  name: KFone Platform UI
   description: RBAC and user management UI for Korn Ferry Talent Suite
 
 standards:
@@ -15,7 +15,7 @@ standards:
   ui_library: shadcn/ui
   icons: lucide-react
   routing: react-router-dom
-  state_management: React Context API
+  state_management: Zustand
   authentication: Keycloak
 
 best_practices:
@@ -23,7 +23,7 @@ best_practices:
   - Use TypeScript for all code (no .js files)
   - Use Tailwind utility classes for styling; avoid custom CSS unless necessary
   - Use shadcn/ui components for UI consistency
-  - Use React Context for global state (e.g., Auth)
+  - Use Zustand for global state management
   - Use React Router for navigation
   - Use descriptive, concise, and JSDoc-style comments
   - Keep components small and focused (SRP)

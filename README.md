@@ -1,4 +1,4 @@
-# KF Platform Talent Suite
+# KFone Platform UI
 
 A React application for user impersonation functionality with Keycloak integration.
 

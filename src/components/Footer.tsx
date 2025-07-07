@@ -8,7 +8,7 @@ const Footer: React.FC = () => {
       <div className="container mx-auto px-4 py-6">
         <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
           <div className="text-sm text-muted-foreground">
-            © {currentYear} KF Platform Talent Suite. All rights reserved.
+            © {currentYear} KFone Platform UI. All rights reserved.
           </div>
 
           <div className="flex items-center space-x-6">

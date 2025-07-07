@@ -122,7 +122,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onMenuClick }) => {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <h1 className="text-xl font-semibold">KF Platform Talent Suite</h1>
+          <h1 className="text-xl font-semibold">KFone Platform UI</h1>
           
           {isImpersonating && currentUser.email && (
             <Badge variant="destructive" className="flex items-center space-x-1">
