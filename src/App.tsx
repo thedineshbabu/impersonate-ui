@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './AuthContext';
+import { useAuthStore } from './stores/authStore';
+import { useClientStore } from './stores/clientStore';
+import { getClients } from './data';
 import Layout from './components/Layout';
 import LoginPage from './LoginPage';
 import Dashboard from './Dashboard';
@@ -12,12 +14,37 @@ import ImpersonateUser from './components/ImpersonateUser';
 import Resources from './components/Resources';
 import RoleStepperForm from './components/RoleStepperForm';
 import Products from './components/Products';
+import NotificationToast from './components/NotificationToast';
 
 const AppRoutes: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, initializeAuth } = useAuthStore();
+  const { setClients } = useClientStore();
+
+  // Initialize authentication and load client data
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        await initializeAuth();
+        // Load client data
+        const clients = getClients();
+        setClients(clients);
+      } catch (error) {
+        console.error('Failed to initialize app:', error);
+      }
+    };
+
+    initializeApp();
+  }, [initializeAuth, setClients]);
 
   if (isLoading) {
-    return <div>Loading authentication...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading authentication...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
@@ -44,11 +71,10 @@ const AppRoutes: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <Router>
-        <AppRoutes />
-      </Router>
-    </AuthProvider>
+    <Router>
+      <AppRoutes />
+      <NotificationToast />
+    </Router>
   );
 };
 

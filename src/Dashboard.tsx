@@ -5,6 +5,7 @@ import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
 import { Users, Building2, MoreVertical, Plus } from 'lucide-react';
 import AddClientForm from './components/AddClientForm';
+import ZustandExample from './components/ZustandExample';
 
 // Mock roles data
 const mockRoles = [
@@ -112,7 +113,7 @@ function getRandomIcon(seed: string) {
 }
 
 const Dashboard: React.FC = () => {
-  const [tab, setTab] = useState<'Clients' | 'Roles'>('Clients');
+  const [tab, setTab] = useState<'Clients' | 'Roles' | 'Zustand'>('Clients');
   const [search, setSearch] = useState('');
   const [isAddClientOpen, setIsAddClientOpen] = useState(false);
   const [clients, setClients] = useState(getClients());
@@ -164,6 +165,12 @@ const Dashboard: React.FC = () => {
           onClick={() => setTab('Roles')}
         >
           Roles
+        </button>
+        <button
+          className={`px-4 py-2 border-b-2 font-semibold ${tab === 'Zustand' ? 'border-green-800 text-green-800' : 'border-transparent text-muted-foreground'}`}
+          onClick={() => setTab('Zustand')}
+        >
+          Zustand Demo
         </button>
       </div>
       {tab === 'Clients' && (
@@ -338,6 +345,10 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {tab === 'Zustand' && (
+        <ZustandExample />
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '../AuthContext';
+import { useAuthStore, useCurrentUser } from '../stores/authStore';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ProfileModal from './ProfileModal';
 import Preferences from './Preferences';
@@ -34,7 +34,8 @@ interface ToolbarProps {
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({ onMenuClick }) => {
-  const { userEmail, userFirstName, userLastName, logout, isImpersonating, impersonatedUserEmail, impersonatedUserFirstName, impersonatedUserLastName } = useAuth();
+  const { logout, isImpersonating } = useAuthStore();
+  const currentUser = useCurrentUser();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
   const navigate = useNavigate();
@@ -123,13 +124,13 @@ const Toolbar: React.FC<ToolbarProps> = ({ onMenuClick }) => {
 
           <h1 className="text-xl font-semibold">KF Platform Talent Suite</h1>
           
-          {isImpersonating && impersonatedUserEmail && (
+          {isImpersonating && currentUser.email && (
             <Badge variant="destructive" className="flex items-center space-x-1">
               <AlertTriangle className="h-3 w-3" />
               <span>
-                Impersonating: {impersonatedUserFirstName && impersonatedUserLastName 
-                  ? `${impersonatedUserFirstName} ${impersonatedUserLastName}` 
-                  : impersonatedUserEmail}
+                Impersonating: {currentUser.firstName && currentUser.lastName 
+                  ? `${currentUser.firstName} ${currentUser.lastName}` 
+                  : currentUser.email}
               </span>
             </Badge>
           )}
@@ -140,12 +141,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ onMenuClick }) => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center space-x-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-medium">
-                  {userEmail ? userEmail.charAt(0).toUpperCase() : 'U'}
+                  {currentUser.email ? currentUser.email.charAt(0).toUpperCase() : 'U'}
                 </div>
                 <span className="hidden md:block">
-                  {userFirstName && userLastName 
-                    ? `${userFirstName} ${userLastName}` 
-                    : userEmail}
+                  {currentUser.firstName && currentUser.lastName 
+                    ? `${currentUser.firstName} ${currentUser.lastName}` 
+                    : currentUser.email}
                 </span>
               </Button>
             </DropdownMenuTrigger>
