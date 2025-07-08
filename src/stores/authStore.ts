@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import keycloak from '../keycloak';
+import { authApi, ApiError } from '../services/api';
 
 /**
  * Authentication state interface
@@ -12,6 +13,7 @@ export interface AuthState {
   userFirstName: string | null;
   userLastName: string | null;
   isLoading: boolean;
+  error: string | null;
   
   // Impersonation state
   isImpersonating: boolean;
@@ -21,8 +23,11 @@ export interface AuthState {
   
   // Actions
   initializeAuth: () => Promise<void>;
-  login: (email: string) => Promise<void>;
+  login: (email: string, password?: string) => Promise<void>;
   logout: () => Promise<void>;
+  register: (userData: { email: string; password: string; firstName: string; lastName: string }) => Promise<void>;
+  refreshToken: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   startImpersonation: (user: {
     email: string;
     firstName: string;
@@ -30,11 +35,13 @@ export interface AuthState {
   }) => void;
   stopImpersonation: () => void;
   setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+  clearError: () => void;
 }
 
 /**
  * Zustand store for authentication state management
- * Replaces the AuthContext with a more efficient and scalable solution
+ * Integrates with both Keycloak SSO and backend API authentication
  */
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -45,6 +52,7 @@ export const useAuthStore = create<AuthState>()(
       userFirstName: null,
       userLastName: null,
       isLoading: true,
+      error: null,
       isImpersonating: false,
       impersonatedUserEmail: null,
       impersonatedUserFirstName: null,
@@ -56,12 +64,15 @@ export const useAuthStore = create<AuthState>()(
        */
       initializeAuth: async () => {
         try {
-          set({ isLoading: true });
+          set({ isLoading: true, error: null });
           
           // Initialize Keycloak
           await keycloak.init({ onLoad: 'check-sso' });
           
           if (keycloak.authenticated) {
+            // Store Keycloak token for API calls
+            localStorage.setItem('access_token', keycloak.token || '');
+            
             set({
               isAuthenticated: true,
               userEmail: keycloak.tokenParsed?.email || null,
@@ -70,7 +81,26 @@ export const useAuthStore = create<AuthState>()(
               isLoading: false,
             });
           } else {
-            set({ isLoading: false });
+            // Check for API token
+            const apiToken = localStorage.getItem('access_token');
+            if (apiToken) {
+              try {
+                const profile = await authApi.profile();
+                set({
+                  isAuthenticated: true,
+                  userEmail: profile.email,
+                  userFirstName: profile.firstName,
+                  userLastName: profile.lastName,
+                  isLoading: false,
+                });
+              } catch (error) {
+                // Token is invalid, clear it
+                localStorage.removeItem('access_token');
+                set({ isLoading: false });
+              }
+            } else {
+              set({ isLoading: false });
+            }
           }
 
           // Check for existing impersonation state
@@ -90,6 +120,7 @@ export const useAuthStore = create<AuthState>()(
 
           // Set up Keycloak event handlers
           keycloak.onAuthSuccess = () => {
+            localStorage.setItem('access_token', keycloak.token || '');
             set({
               isAuthenticated: true,
               userEmail: keycloak.tokenParsed?.email || null,
@@ -100,6 +131,7 @@ export const useAuthStore = create<AuthState>()(
 
           keycloak.onAuthLogout = () => {
             get().stopImpersonation();
+            localStorage.removeItem('access_token');
             set({
               isAuthenticated: false,
               userEmail: null,
@@ -110,6 +142,7 @@ export const useAuthStore = create<AuthState>()(
 
           keycloak.onAuthError = () => {
             get().stopImpersonation();
+            localStorage.removeItem('access_token');
             set({
               isAuthenticated: false,
               userEmail: null,
@@ -119,8 +152,11 @@ export const useAuthStore = create<AuthState>()(
           };
 
           keycloak.onTokenExpired = () => {
-            keycloak.updateToken(70).catch(() => {
+            keycloak.updateToken(70).then(() => {
+              localStorage.setItem('access_token', keycloak.token || '');
+            }).catch(() => {
               get().stopImpersonation();
+              localStorage.removeItem('access_token');
               set({
                 isAuthenticated: false,
                 userEmail: null,
@@ -131,19 +167,92 @@ export const useAuthStore = create<AuthState>()(
           };
 
         } catch (error) {
-          console.error('Keycloak initialization failed:', error);
-          set({ isLoading: false });
+          console.error('Authentication initialization failed:', error);
+          set({ isLoading: false, error: 'Authentication initialization failed' });
         }
       },
 
       /**
-       * Login with email hint
+       * Login with email and optional password
+       * Supports both Keycloak SSO and API-based authentication
        */
-      login: async (email: string) => {
+      login: async (email: string, password?: string) => {
         try {
-          await keycloak.login({ loginHint: email });
+          set({ isLoading: true, error: null });
+          
+          if (password) {
+            // API-based login
+            const response = await authApi.login({ email, password });
+            localStorage.setItem('access_token', response.access_token);
+            if (response.refresh_token) {
+              localStorage.setItem('refresh_token', response.refresh_token);
+            }
+            
+            // Fetch user profile
+            const profile = await authApi.profile();
+            set({
+              isAuthenticated: true,
+              userEmail: profile.email,
+              userFirstName: profile.firstName,
+              userLastName: profile.lastName,
+              isLoading: false,
+            });
+          } else {
+            // Keycloak SSO login
+            await keycloak.login({ loginHint: email });
+          }
         } catch (error) {
-          console.error('Login failed:', error);
+          const errorMessage = error instanceof ApiError ? error.message : 'Login failed';
+          set({ error: errorMessage, isLoading: false });
+          throw error;
+        }
+      },
+
+      /**
+       * Register a new user
+       */
+      register: async (userData) => {
+        try {
+          set({ isLoading: true, error: null });
+          await authApi.register(userData);
+          set({ isLoading: false });
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Registration failed';
+          set({ error: errorMessage, isLoading: false });
+          throw error;
+        }
+      },
+
+      /**
+       * Refresh authentication token
+       */
+      refreshToken: async () => {
+        try {
+          const refreshToken = localStorage.getItem('refresh_token');
+          if (!refreshToken) {
+            throw new Error('No refresh token available');
+          }
+          
+          const response = await authApi.refresh(refreshToken);
+          localStorage.setItem('access_token', response.access_token);
+        } catch (error) {
+          // Refresh failed, redirect to login
+          get().logout();
+          throw error;
+        }
+      },
+
+      /**
+       * Change user password
+       */
+      changePassword: async (currentPassword: string, newPassword: string) => {
+        try {
+          set({ isLoading: true, error: null });
+          await authApi.changePassword({ currentPassword, newPassword });
+          set({ isLoading: false });
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Password change failed';
+          set({ error: errorMessage, isLoading: false });
           throw error;
         }
       },
@@ -153,11 +262,48 @@ export const useAuthStore = create<AuthState>()(
        */
       logout: async () => {
         try {
+          set({ isLoading: true });
           get().stopImpersonation();
-          await keycloak.logout();
+          
+          // Try to logout from API
+          try {
+            await authApi.logout();
+          } catch (error) {
+            // API logout failed, continue with local cleanup
+            console.warn('API logout failed:', error);
+          }
+          
+          // Clear local storage
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          
+          // Try Keycloak logout
+          try {
+            await keycloak.logout();
+          } catch (error) {
+            // Keycloak logout failed, continue with local cleanup
+            console.warn('Keycloak logout failed:', error);
+          }
+          
+          set({
+            isAuthenticated: false,
+            userEmail: null,
+            userFirstName: null,
+            userLastName: null,
+            isLoading: false,
+          });
         } catch (error) {
           console.error('Logout failed:', error);
-          throw error;
+          // Force local cleanup even if logout fails
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          set({
+            isAuthenticated: false,
+            userEmail: null,
+            userFirstName: null,
+            userLastName: null,
+            isLoading: false,
+          });
         }
       },
 
@@ -204,11 +350,28 @@ export const useAuthStore = create<AuthState>()(
       setLoading: (loading: boolean) => {
         set({ isLoading: loading });
       },
+
+      /**
+       * Set error state
+       */
+      setError: (error: string | null) => {
+        set({ error });
+      },
+
+      /**
+       * Clear error state
+       */
+      clearError: () => {
+        set({ error: null });
+      },
     }),
     {
-      name: 'auth-storage',
-      // Only persist certain fields, not sensitive data
+      name: 'auth-store',
       partialize: (state) => ({
+        // Only persist non-sensitive data
+        userEmail: state.userEmail,
+        userFirstName: state.userFirstName,
+        userLastName: state.userLastName,
         isImpersonating: state.isImpersonating,
         impersonatedUserEmail: state.impersonatedUserEmail,
         impersonatedUserFirstName: state.impersonatedUserFirstName,

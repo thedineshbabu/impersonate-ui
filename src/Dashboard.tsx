@@ -1,95 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getClients } from './data';
+import { 
+  useClientStore, 
+  useRoleStore, 
+  useProductStore, 
+  useAuthStore,
+  useUIStore 
+} from './stores';
 import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
-import { Users, Building2, MoreVertical, Plus } from 'lucide-react';
+import { Users, Building2, MoreVertical, Plus, Loader2 } from 'lucide-react';
 import AddClientForm from './components/AddClientForm';
 import ZustandExample from './components/ZustandExample';
-
-// Mock roles data
-const mockRoles = [
-  {
-    name: 'Assess Admin',
-    userType: 'Client users',
-    roleType: 'Admin',
-    clients: 2,
-    products: 'KF Assess',
-    lastUpdated: 'May 7, 2025',
-  },
-  {
-    name: 'Pay User',
-    userType: 'Korn Ferry users',
-    roleType: 'Non-admin',
-    clients: 3,
-    products: '-',
-    lastUpdated: 'May 1, 2025',
-  },
-  {
-    name: 'All products',
-    userType: 'Client users',
-    roleType: 'Admin',
-    clients: 35,
-    products: 'All products',
-    lastUpdated: 'Apr 17, 2025',
-  },
-  {
-    name: 'Client Admin',
-    userType: 'Client users',
-    roleType: 'Non-admin',
-    clients: 25,
-    products: 'KF assess, KF pay',
-    lastUpdated: 'Apr 11, 2025',
-  },
-  {
-    name: 'Assess user',
-    userType: 'Korn Ferry users',
-    roleType: 'Admin',
-    clients: 432,
-    products: '-',
-    lastUpdated: 'Apr 11, 2025',
-  },
-  {
-    name: 'User',
-    userType: 'Client users',
-    roleType: 'Non-admin',
-    clients: 230,
-    products: 'Profile Manager',
-    lastUpdated: 'Apr 8, 2025',
-  },
-  {
-    name: 'Client User',
-    userType: 'Client users',
-    roleType: 'Non-admin',
-    clients: 5,
-    products: 'Lorem ipsum dolor sit amet,Lorem ips.',
-    lastUpdated: 'Feb 29, 2025',
-  },
-  {
-    name: 'Super Client Admin',
-    userType: 'Client users',
-    roleType: 'Non-admin',
-    clients: 1,
-    products: '-',
-    lastUpdated: 'Feb 28, 2025',
-  },
-  {
-    name: 'Reports',
-    userType: 'Client users',
-    roleType: 'Non-admin',
-    clients: 3,
-    products: 'Lorem ipsum dolor sit amet,Lorem ips.',
-    lastUpdated: 'Feb 12, 2025',
-  },
-  {
-    name: 'Link',
-    userType: 'Korn Ferry users',
-    roleType: 'Non-admin',
-    clients: 4,
-    products: '-',
-    lastUpdated: 'Feb 2, 2025',
-  },
-];
 
 // Product icon mapping
 const PRODUCT_ICONS: Record<string, string> = {
@@ -116,40 +38,105 @@ const Dashboard: React.FC = () => {
   const [tab, setTab] = useState<'Clients' | 'Roles' | 'Zustand'>('Clients');
   const [search, setSearch] = useState('');
   const [isAddClientOpen, setIsAddClientOpen] = useState(false);
-  const [clients, setClients] = useState(getClients());
   const navigate = useNavigate();
 
+  // Store hooks
+  const { 
+    clients, 
+    isLoading: clientsLoading, 
+    error: clientsError, 
+    fetchClients, 
+    createClient 
+  } = useClientStore();
+  
+  const { 
+    roles, 
+    isLoading: rolesLoading, 
+    error: rolesError, 
+    fetchRoles 
+  } = useRoleStore();
+  
+  const { 
+    products, 
+    isLoading: productsLoading, 
+    error: productsError, 
+    fetchProducts 
+  } = useProductStore();
+  
+  const { isAuthenticated, userEmail } = useAuthStore();
+  const { addNotification } = useUIStore();
+
+  // Load data on component mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchClients();
+      fetchRoles();
+      fetchProducts();
+    }
+  }, [isAuthenticated, fetchClients, fetchRoles, fetchProducts]);
+
+  // Handle errors
+  useEffect(() => {
+    if (clientsError) {
+      addNotification({ type: 'error', title: 'Error', message: 'Failed to load clients: ' + clientsError });
+    }
+    if (rolesError) {
+      addNotification({ type: 'error', title: 'Error', message: 'Failed to load roles: ' + rolesError });
+    }
+    if (productsError) {
+      addNotification({ type: 'error', title: 'Error', message: 'Failed to load products: ' + productsError });
+    }
+  }, [clientsError, rolesError, productsError, addNotification]);
+
   // Filter roles by search
-  const filteredRoles = mockRoles.filter(role =>
+  const filteredRoles = roles.filter(role =>
     role.name.toLowerCase().includes(search.toLowerCase()) ||
-    role.userType.toLowerCase().includes(search.toLowerCase()) ||
-    role.roleType.toLowerCase().includes(search.toLowerCase()) ||
-    role.products.toLowerCase().includes(search.toLowerCase())
+    role.type.toLowerCase().includes(search.toLowerCase()) ||
+    role.description.toLowerCase().includes(search.toLowerCase())
   );
 
   // Filter clients by search
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(search.toLowerCase()) ||
-    client.subscribedProducts.join(', ').toLowerCase().includes(search.toLowerCase())
+    client.subscribedProducts?.join(', ').toLowerCase().includes(search.toLowerCase())
   );
 
   /**
-   * Handles adding a new client to the list
+   * Handles adding a new client
    */
-  const handleAddClient = (clientData: { name: string; subscribedProducts: string[]; identityType: string; sso: boolean; isExistingClient: boolean }) => {
-    const newClient = {
-      id: `client-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      name: clientData.name,
-      subscribedProducts: clientData.subscribedProducts,
-      identityType: clientData.identityType,
-      sso: clientData.sso,
-      isExistingClient: clientData.isExistingClient,
-      users: [],
-      teams: []
-    };
-    
-    setClients([...clients, newClient]);
+  const handleAddClient = async (clientData: { 
+    name: string; 
+    subscribedProducts: string[]; 
+    identityType: string; 
+    sso: boolean; 
+    isExistingClient: boolean 
+  }) => {
+    try {
+      await createClient({
+        name: clientData.name,
+        subscribedProducts: clientData.subscribedProducts,
+        users: [],
+        teams: [],
+      });
+      
+      addNotification({ type: 'success', title: 'Success', message: 'Client created successfully' });
+      setIsAddClientOpen(false);
+    } catch (error) {
+      addNotification({ type: 'error', title: 'Error', message: 'Failed to create client' });
+    }
   };
+
+  // Loading state
+  if (clientsLoading || rolesLoading || productsLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+          <span className="ml-2 text-lg">Loading dashboard data...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -173,6 +160,7 @@ const Dashboard: React.FC = () => {
           Zustand Demo
         </button>
       </div>
+      
       {tab === 'Clients' && (
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
@@ -184,7 +172,7 @@ const Dashboard: React.FC = () => {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
-              <span className="text-muted-foreground text-sm">{clients.length} results</span>
+              <span className="text-muted-foreground text-sm">{filteredClients.length} results</span>
             </div>
             <Button 
               className="bg-green-700 text-white hover:bg-green-800"
@@ -198,96 +186,67 @@ const Dashboard: React.FC = () => {
             <table className="min-w-full border text-sm">
               <thead>
                 <tr className="bg-muted">
-                  <th className="p-2 border-b text-left font-semibold">Client name</th>
-                  <th className="p-2 border-b text-left font-semibold">Client Type</th>
-                  <th className="p-2 border-b text-left font-semibold">Users</th>
-                  <th className="p-2 border-b text-left font-semibold">Teams</th>
-                  <th className="p-2 border-b text-left font-semibold">Products</th>
-                  <th className="p-2 border-b text-left font-semibold">Status</th>
-                  <th className="p-2 border-b text-left font-semibold">Actions</th>
+                  <th className="text-left p-3 font-medium">Client</th>
+                  <th className="text-left p-3 font-medium">Products</th>
+                  <th className="text-left p-3 font-medium">Users</th>
+                  <th className="text-left p-3 font-medium">Teams</th>
+                  <th className="text-left p-3 font-medium">Status</th>
+                  <th className="text-left p-3 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {clients.map((client, idx) => {
-                  // Assign random client type if not already set
-                  const clientTypes = ['Hub', 'Multi Rater', 'Hub & Multi Rater'];
-                  const randomClientType = clientTypes[idx % clientTypes.length]; // Use modulo for consistent assignment
-                  
-                  return (
-                    <tr key={client.id} className="border-b hover:bg-muted/50 cursor-pointer" onClick={() => navigate(`/client/${client.id}`)}>
-                      <td className="p-2 font-medium flex items-center gap-2">
-                        <Building2 className="h-5 w-5 text-primary" />
-                        {client.name}
-                      </td>
-                      <td className="p-2">
-                        {randomClientType === 'Hub & Multi Rater' ? (
-                          <div className="flex gap-1">
-                            <Badge 
-                              variant="outline" 
-                              className="text-xs border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
-                            >
-                              Hub
-                            </Badge>
-                            <Badge 
-                              variant="outline" 
-                              className="text-xs border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
-                            >
-                              Multi Rater
-                            </Badge>
-                          </div>
-                        ) : (
-                          <Badge 
-                            variant="outline" 
-                            className={`text-xs ${
-                              randomClientType === 'Hub' 
-                                ? 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
-                                : 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
-                            }`}
-                          >
-                            {randomClientType}
-                          </Badge>
-                        )}
-                      </td>
-                      <td className="p-2 font-mono">
-                        <div className="flex items-center gap-1">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          {client.users.length}
+                {filteredClients.map((client) => (
+                  <tr key={client.id} className="border-t hover:bg-muted/50">
+                    <td className="p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                          <Building2 className="h-5 w-5 text-green-600" />
                         </div>
-                      </td>
-                    <td className="p-2 font-mono">
-                      {client.teams ? client.teams.length : 0}
-                    </td>
-                    <td className="p-2">
-                      <div className="flex flex-wrap gap-1 max-w-xs">
-                        {client.subscribedProducts.map((product, i) => {
-                          const icon = PRODUCT_ICONS[product] || getRandomIcon(product);
-                          return (
-                            <Badge key={i} variant="secondary" className="text-xs" title={product}>
-                              {icon}
-                            </Badge>
-                          );
-                        })}
+                        <div>
+                          <div className="font-medium">{client.name}</div>
+                          <div className="text-muted-foreground text-xs">ID: {client.id}</div>
+                        </div>
                       </div>
                     </td>
-                    <td className="p-2">
-                      <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-100">Active</Badge>
+                    <td className="p-3">
+                      <div className="flex flex-wrap gap-1">
+                        {client.subscribedProducts?.map((product, index) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {PRODUCT_ICONS[product] || getRandomIcon(product)} {product}
+                          </Badge>
+                        )) || <span className="text-muted-foreground">No products</span>}
+                      </div>
                     </td>
-                                          <td className="p-2"><MoreVertical className="w-5 h-5 text-muted-foreground cursor-pointer" onClick={e => {e.stopPropagation(); /* actions */}} /></td>
-                    </tr>
-                  );
-                })}
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <span>{client.users?.length || 0}</span>
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <span>{client.teams?.length || 0}</span>
+                    </td>
+                                         <td className="p-3">
+                       <Badge variant="default">
+                         Active
+                       </Badge>
+                     </td>
+                    <td className="p-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => navigate(`/client/${client.id}`)}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         </div>
       )}
-
-      {/* Add Client Form Dialog */}
-      <AddClientForm
-        isOpen={isAddClientOpen}
-        onClose={() => setIsAddClientOpen(false)}
-        onSubmit={handleAddClient}
-      />
 
       {tab === 'Roles' && (
         <div className="bg-white rounded-lg shadow p-6">
@@ -296,60 +255,77 @@ const Dashboard: React.FC = () => {
               <input
                 type="text"
                 className="border rounded px-3 py-2 w-72"
-                placeholder="Search by role name, type, etc."
+                placeholder="Search roles..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
               <span className="text-muted-foreground text-sm">{filteredRoles.length} results</span>
             </div>
-            <Button className="bg-green-700 text-white hover:bg-green-800">+ Create Role Template</Button>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full border text-sm">
               <thead>
                 <tr className="bg-muted">
-                  <th className="p-2 border-b text-left font-semibold">Role name</th>
-                  <th className="p-2 border-b text-left font-semibold">User type</th>
-                  <th className="p-2 border-b text-left font-semibold">Role type</th>
-                  <th className="p-2 border-b text-left font-semibold">Clients</th>
-                  <th className="p-2 border-b text-left font-semibold">Products</th>
-                  <th className="p-2 border-b text-left font-semibold">Last Updated on</th>
-                  <th className="p-2 border-b text-left font-semibold">Actions</th>
+                  <th className="text-left p-3 font-medium">Role Name</th>
+                  <th className="text-left p-3 font-medium">Type</th>
+                  <th className="text-left p-3 font-medium">Status</th>
+                  <th className="text-left p-3 font-medium">Permissions</th>
+                  <th className="text-left p-3 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredRoles.map((role, idx) => (
-                  <tr key={idx} className="border-b hover:bg-muted/50">
-                    <td className="p-2 font-medium">{role.name}</td>
-                    <td className="p-2">
-                      <Badge className={`text-xs ${role.userType === 'Korn Ferry users' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>{role.userType}</Badge>
+                {filteredRoles.map((role) => (
+                  <tr key={role.id} className="border-t hover:bg-muted/50">
+                    <td className="p-3">
+                      <div className="font-medium">{role.name}</div>
+                      <div className="text-muted-foreground text-xs">{role.description}</div>
                     </td>
-                    <td className="p-2">
-                      <Badge className={`text-xs ${role.roleType === 'Admin' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>{role.roleType}</Badge>
+                    <td className="p-3">
+                      <Badge variant="outline">{role.type}</Badge>
                     </td>
-                    <td className="p-2 font-mono">{role.clients}</td>
-                    <td className="p-2">{role.products}</td>
-                    <td className="p-2">{role.lastUpdated}</td>
-                    <td className="p-2"><MoreVertical className="w-5 h-5 text-muted-foreground cursor-pointer" /></td>
+                    <td className="p-3">
+                      <Badge variant={role.status === 'active' ? 'default' : 'secondary'}>
+                        {role.status}
+                      </Badge>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex flex-wrap gap-1">
+                        {role.permissions?.slice(0, 3).map((permission, index) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {permission}
+                          </Badge>
+                        ))}
+                        {role.permissions?.length > 3 && (
+                          <Badge variant="secondary" className="text-xs">
+                            +{role.permissions.length - 3} more
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => navigate(`/role/${role.id}`)}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-muted-foreground">Results per page: <select className="border rounded px-1 py-0.5 text-sm"><option>25</option></select> Showing 1 to {Math.min(10, filteredRoles.length)} of {filteredRoles.length} results</div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">{'<'}</Button>
-              <span className="text-sm">01 of 124 pages</span>
-              <Button variant="outline" size="sm">{'>'}</Button>
-            </div>
-          </div>
         </div>
       )}
 
-      {tab === 'Zustand' && (
-        <ZustandExample />
-      )}
+      {tab === 'Zustand' && <ZustandExample />}
+
+      <AddClientForm
+        isOpen={isAddClientOpen}
+        onClose={() => setIsAddClientOpen(false)}
+        onSubmit={handleAddClient}
+      />
     </div>
   );
 };

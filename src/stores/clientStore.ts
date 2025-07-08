@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Client, User, Team } from '../data';
+import { clientsApi, usersApi, teamsApi, ApiError } from '../services/api';
 
 /**
  * Client management state interface
@@ -17,21 +18,24 @@ export interface ClientState {
   error: string | null;
   
   // Actions
-  setClients: (clients: Client[]) => void;
+  fetchClients: (params?: { page?: number; limit?: number; search?: string; status?: string; type?: string }) => Promise<void>;
+  fetchClientById: (id: string) => Promise<void>;
   selectClient: (clientId: string) => void;
   selectUser: (userId: string) => void;
   selectTeam: (teamId: string) => void;
-  addClient: (client: Client) => void;
-  updateClient: (clientId: string, updates: Partial<Client>) => void;
-  deleteClient: (clientId: string) => void;
-  addUser: (clientId: string, user: User) => void;
-  updateUser: (clientId: string, userId: string, updates: Partial<User>) => void;
-  deleteUser: (clientId: string, userId: string) => void;
-  addTeam: (clientId: string, team: Team) => void;
-  updateTeam: (clientId: string, teamId: string, updates: Partial<Team>) => void;
-  deleteTeam: (clientId: string, teamId: string) => void;
-  addUserToTeam: (clientId: string, teamId: string, userId: string) => void;
-  removeUserFromTeam: (clientId: string, teamId: string, userId: string) => void;
+  createClient: (client: Omit<Client, 'id'>) => Promise<void>;
+  updateClient: (clientId: string, updates: Partial<Client>) => Promise<void>;
+  deleteClient: (clientId: string) => Promise<void>;
+  fetchUsersByClient: (clientId: string, params?: { page?: number; limit?: number }) => Promise<void>;
+  createUser: (clientId: string, user: Omit<User, 'userId'>) => Promise<void>;
+  updateUser: (clientId: string, userId: string, updates: Partial<User>) => Promise<void>;
+  deleteUser: (clientId: string, userId: string) => Promise<void>;
+  fetchTeamsByClient: (clientId: string, params?: { page?: number; limit?: number }) => Promise<void>;
+  createTeam: (clientId: string, team: Omit<Team, 'teamId'>) => Promise<void>;
+  updateTeam: (clientId: string, teamId: string, updates: Partial<Team>) => Promise<void>;
+  deleteTeam: (clientId: string, teamId: string) => Promise<void>;
+  addUserToTeam: (clientId: string, teamId: string, userId: string) => Promise<void>;
+  removeUserFromTeam: (clientId: string, teamId: string, userId: string) => Promise<void>;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
@@ -39,7 +43,7 @@ export interface ClientState {
 
 /**
  * Zustand store for client and user management
- * Handles all client-related state and operations
+ * Handles all client-related state and operations with API integration
  */
 export const useClientStore = create<ClientState>()(
   devtools(
@@ -53,10 +57,31 @@ export const useClientStore = create<ClientState>()(
       error: null,
 
       /**
-       * Set clients data
+       * Fetch all clients from API
        */
-      setClients: (clients: Client[]) => {
-        set({ clients, error: null });
+      fetchClients: async (params) => {
+        try {
+          set({ isLoading: true, error: null });
+          const response = await clientsApi.getAll(params);
+          set({ clients: response.data, isLoading: false });
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to fetch clients';
+          set({ error: errorMessage, isLoading: false });
+        }
+      },
+
+      /**
+       * Fetch a specific client by ID
+       */
+      fetchClientById: async (id: string) => {
+        try {
+          set({ isLoading: true, error: null });
+          const client = await clientsApi.getById(id);
+          set({ selectedClient: client, isLoading: false });
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to fetch client';
+          set({ error: errorMessage, isLoading: false });
+        }
       },
 
       /**
@@ -94,237 +119,304 @@ export const useClientStore = create<ClientState>()(
       },
 
       /**
-       * Add a new client
+       * Create a new client
        */
-      addClient: (client: Client) => {
-        set(state => ({
-          clients: [...state.clients, client],
-          error: null,
-        }));
+      createClient: async (clientData) => {
+        try {
+          set({ isLoading: true, error: null });
+          const newClient = await clientsApi.create(clientData);
+          set(state => ({
+            clients: [...state.clients, newClient],
+            isLoading: false,
+          }));
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to create client';
+          set({ error: errorMessage, isLoading: false });
+        }
       },
 
       /**
        * Update an existing client
        */
-      updateClient: (clientId: string, updates: Partial<Client>) => {
-        set(state => ({
-          clients: state.clients.map(client =>
-            client.id === clientId ? { ...client, ...updates } : client
-          ),
-          selectedClient: state.selectedClient?.id === clientId 
-            ? { ...state.selectedClient, ...updates }
-            : state.selectedClient,
-          error: null,
-        }));
+      updateClient: async (clientId: string, updates) => {
+        try {
+          set({ isLoading: true, error: null });
+          const updatedClient = await clientsApi.update(clientId, updates);
+          set(state => ({
+            clients: state.clients.map(client =>
+              client.id === clientId ? updatedClient : client
+            ),
+            selectedClient: state.selectedClient?.id === clientId 
+              ? updatedClient
+              : state.selectedClient,
+            isLoading: false,
+          }));
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to update client';
+          set({ error: errorMessage, isLoading: false });
+        }
       },
 
       /**
        * Delete a client
        */
-      deleteClient: (clientId: string) => {
-        set(state => ({
-          clients: state.clients.filter(client => client.id !== clientId),
-          selectedClient: state.selectedClient?.id === clientId ? null : state.selectedClient,
-          error: null,
-        }));
+      deleteClient: async (clientId: string) => {
+        try {
+          set({ isLoading: true, error: null });
+          await clientsApi.delete(clientId);
+          set(state => ({
+            clients: state.clients.filter(client => client.id !== clientId),
+            selectedClient: state.selectedClient?.id === clientId ? null : state.selectedClient,
+            isLoading: false,
+          }));
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to delete client';
+          set({ error: errorMessage, isLoading: false });
+        }
       },
 
       /**
-       * Add a new user to a client
+       * Fetch users for a specific client
        */
-      addUser: (clientId: string, user: User) => {
-        set(state => ({
-          clients: state.clients.map(client =>
-            client.id === clientId
-              ? { ...client, users: [...client.users, user] }
-              : client
-          ),
-          selectedClient: state.selectedClient?.id === clientId
-            ? { ...state.selectedClient, users: [...state.selectedClient.users, user] }
-            : state.selectedClient,
-          error: null,
-        }));
+      fetchUsersByClient: async (clientId: string, params) => {
+        try {
+          set({ isLoading: true, error: null });
+          const response = await clientsApi.getUsers(clientId, params);
+          set(state => ({
+            selectedClient: state.selectedClient?.id === clientId
+              ? { ...state.selectedClient, users: response.data }
+              : state.selectedClient,
+            isLoading: false,
+          }));
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to fetch users';
+          set({ error: errorMessage, isLoading: false });
+        }
+      },
+
+      /**
+       * Create a new user for a client
+       */
+      createUser: async (clientId: string, userData) => {
+        try {
+          set({ isLoading: true, error: null });
+          const newUser = await usersApi.create({ ...userData, clientId });
+          set(state => ({
+            clients: state.clients.map(client =>
+              client.id === clientId
+                ? { ...client, users: [...client.users, newUser] }
+                : client
+            ),
+            selectedClient: state.selectedClient?.id === clientId
+              ? { ...state.selectedClient, users: [...state.selectedClient.users, newUser] }
+              : state.selectedClient,
+            isLoading: false,
+          }));
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to create user';
+          set({ error: errorMessage, isLoading: false });
+        }
       },
 
       /**
        * Update an existing user
        */
-      updateUser: (clientId: string, userId: string, updates: Partial<User>) => {
-        set(state => ({
-          clients: state.clients.map(client =>
-            client.id === clientId
+      updateUser: async (clientId: string, userId: string, updates) => {
+        try {
+          set({ isLoading: true, error: null });
+          const updatedUser = await usersApi.update(userId, updates);
+          set(state => ({
+            clients: state.clients.map(client =>
+              client.id === clientId
+                ? {
+                    ...client,
+                    users: client.users.map(user =>
+                      user.userId === userId ? updatedUser : user
+                    ),
+                  }
+                : client
+            ),
+            selectedClient: state.selectedClient?.id === clientId
               ? {
-                  ...client,
-                  users: client.users.map(user =>
-                    user.userId === userId ? { ...user, ...updates } : user
+                  ...state.selectedClient,
+                  users: state.selectedClient.users.map(user =>
+                    user.userId === userId ? updatedUser : user
                   ),
                 }
-              : client
-          ),
-          selectedClient: state.selectedClient?.id === clientId
-            ? {
-                ...state.selectedClient,
-                users: state.selectedClient.users.map(user =>
-                  user.userId === userId ? { ...user, ...updates } : user
-                ),
-              }
-            : state.selectedClient,
-          selectedUser: state.selectedUser?.userId === userId
-            ? { ...state.selectedUser, ...updates }
-            : state.selectedUser,
-          error: null,
-        }));
+              : state.selectedClient,
+            selectedUser: state.selectedUser?.userId === userId
+              ? updatedUser
+              : state.selectedUser,
+            isLoading: false,
+          }));
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to update user';
+          set({ error: errorMessage, isLoading: false });
+        }
       },
 
       /**
        * Delete a user from a client
        */
-      deleteUser: (clientId: string, userId: string) => {
-        set(state => ({
-          clients: state.clients.map(client =>
-            client.id === clientId
-              ? { ...client, users: client.users.filter(user => user.userId !== userId) }
-              : client
-          ),
-          selectedClient: state.selectedClient?.id === clientId
-            ? { ...state.selectedClient, users: state.selectedClient.users.filter(user => user.userId !== userId) }
-            : state.selectedClient,
-          selectedUser: state.selectedUser?.userId === userId ? null : state.selectedUser,
-          error: null,
-        }));
+      deleteUser: async (clientId: string, userId: string) => {
+        try {
+          set({ isLoading: true, error: null });
+          await usersApi.delete(userId);
+          set(state => ({
+            clients: state.clients.map(client =>
+              client.id === clientId
+                ? { ...client, users: client.users.filter(user => user.userId !== userId) }
+                : client
+            ),
+            selectedClient: state.selectedClient?.id === clientId
+              ? { ...state.selectedClient, users: state.selectedClient.users.filter(user => user.userId !== userId) }
+              : state.selectedClient,
+            selectedUser: state.selectedUser?.userId === userId ? null : state.selectedUser,
+            isLoading: false,
+          }));
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to delete user';
+          set({ error: errorMessage, isLoading: false });
+        }
       },
 
       /**
-       * Add a new team to a client
+       * Fetch teams for a specific client
        */
-      addTeam: (clientId: string, team: Team) => {
-        set(state => ({
-          clients: state.clients.map(client =>
-            client.id === clientId
-              ? { ...client, teams: [...client.teams, team] }
-              : client
-          ),
-          selectedClient: state.selectedClient?.id === clientId
-            ? { ...state.selectedClient, teams: [...state.selectedClient.teams, team] }
-            : state.selectedClient,
-          error: null,
-        }));
+      fetchTeamsByClient: async (clientId: string, params) => {
+        try {
+          set({ isLoading: true, error: null });
+          const response = await teamsApi.getAll({ ...params, clientId });
+          set(state => ({
+            selectedClient: state.selectedClient?.id === clientId
+              ? { ...state.selectedClient, teams: response.data }
+              : state.selectedClient,
+            isLoading: false,
+          }));
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to fetch teams';
+          set({ error: errorMessage, isLoading: false });
+        }
+      },
+
+      /**
+       * Create a new team for a client
+       */
+      createTeam: async (clientId: string, teamData) => {
+        try {
+          set({ isLoading: true, error: null });
+          const newTeam = await teamsApi.create({ ...teamData, clientId });
+          set(state => ({
+            clients: state.clients.map(client =>
+              client.id === clientId
+                ? { ...client, teams: [...client.teams, newTeam] }
+                : client
+            ),
+            selectedClient: state.selectedClient?.id === clientId
+              ? { ...state.selectedClient, teams: [...state.selectedClient.teams, newTeam] }
+              : state.selectedClient,
+            isLoading: false,
+          }));
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to create team';
+          set({ error: errorMessage, isLoading: false });
+        }
       },
 
       /**
        * Update an existing team
        */
-      updateTeam: (clientId: string, teamId: string, updates: Partial<Team>) => {
-        set(state => ({
-          clients: state.clients.map(client =>
-            client.id === clientId
+      updateTeam: async (clientId: string, teamId: string, updates) => {
+        try {
+          set({ isLoading: true, error: null });
+          const updatedTeam = await teamsApi.update(teamId, updates);
+          set(state => ({
+            clients: state.clients.map(client =>
+              client.id === clientId
+                ? {
+                    ...client,
+                    teams: client.teams.map(team =>
+                      team.teamId === teamId ? updatedTeam : team
+                    ),
+                  }
+                : client
+            ),
+            selectedClient: state.selectedClient?.id === clientId
               ? {
-                  ...client,
-                  teams: client.teams.map(team =>
-                    team.teamId === teamId ? { ...team, ...updates } : team
+                  ...state.selectedClient,
+                  teams: state.selectedClient.teams.map(team =>
+                    team.teamId === teamId ? updatedTeam : team
                   ),
                 }
-              : client
-          ),
-          selectedClient: state.selectedClient?.id === clientId
-            ? {
-                ...state.selectedClient,
-                teams: state.selectedClient.teams.map(team =>
-                  team.teamId === teamId ? { ...team, ...updates } : team
-                ),
-              }
-            : state.selectedClient,
-          selectedTeam: state.selectedTeam?.teamId === teamId
-            ? { ...state.selectedTeam, ...updates }
-            : state.selectedTeam,
-          error: null,
-        }));
+              : state.selectedClient,
+            selectedTeam: state.selectedTeam?.teamId === teamId
+              ? updatedTeam
+              : state.selectedTeam,
+            isLoading: false,
+          }));
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to update team';
+          set({ error: errorMessage, isLoading: false });
+        }
       },
 
       /**
        * Delete a team from a client
        */
-      deleteTeam: (clientId: string, teamId: string) => {
-        set(state => ({
-          clients: state.clients.map(client =>
-            client.id === clientId
-              ? { ...client, teams: client.teams.filter(team => team.teamId !== teamId) }
-              : client
-          ),
-          selectedClient: state.selectedClient?.id === clientId
-            ? { ...state.selectedClient, teams: state.selectedClient.teams.filter(team => team.teamId !== teamId) }
-            : state.selectedClient,
-          selectedTeam: state.selectedTeam?.teamId === teamId ? null : state.selectedTeam,
-          error: null,
-        }));
+      deleteTeam: async (clientId: string, teamId: string) => {
+        try {
+          set({ isLoading: true, error: null });
+          await teamsApi.delete(teamId);
+          set(state => ({
+            clients: state.clients.map(client =>
+              client.id === clientId
+                ? { ...client, teams: client.teams.filter(team => team.teamId !== teamId) }
+                : client
+            ),
+            selectedClient: state.selectedClient?.id === clientId
+              ? { ...state.selectedClient, teams: state.selectedClient.teams.filter(team => team.teamId !== teamId) }
+              : state.selectedClient,
+            selectedTeam: state.selectedTeam?.teamId === teamId ? null : state.selectedTeam,
+            isLoading: false,
+          }));
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to delete team';
+          set({ error: errorMessage, isLoading: false });
+        }
       },
 
       /**
        * Add a user to a team
        */
-      addUserToTeam: (clientId: string, teamId: string, userId: string) => {
-        set(state => ({
-          clients: state.clients.map(client =>
-            client.id === clientId
-              ? {
-                  ...client,
-                  teams: client.teams.map(team =>
-                    team.teamId === teamId
-                      ? { ...team, members: [...team.members, userId] }
-                      : team
-                  ),
-                }
-              : client
-          ),
-          selectedClient: state.selectedClient?.id === clientId
-            ? {
-                ...state.selectedClient,
-                teams: state.selectedClient.teams.map(team =>
-                  team.teamId === teamId
-                    ? { ...team, members: [...team.members, userId] }
-                    : team
-                ),
-              }
-            : state.selectedClient,
-          selectedTeam: state.selectedTeam?.teamId === teamId
-            ? { ...state.selectedTeam, members: [...state.selectedTeam.members, userId] }
-            : state.selectedTeam,
-          error: null,
-        }));
+      addUserToTeam: async (clientId: string, teamId: string, userId: string) => {
+        try {
+          set({ isLoading: true, error: null });
+          await teamsApi.addMember({ userId, teamId });
+          // Refresh team data to get updated member list
+          const { fetchTeamsByClient } = get();
+          await fetchTeamsByClient(clientId);
+          set({ isLoading: false });
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to add user to team';
+          set({ error: errorMessage, isLoading: false });
+        }
       },
 
       /**
        * Remove a user from a team
        */
-      removeUserFromTeam: (clientId: string, teamId: string, userId: string) => {
-        set(state => ({
-          clients: state.clients.map(client =>
-            client.id === clientId
-              ? {
-                  ...client,
-                  teams: client.teams.map(team =>
-                    team.teamId === teamId
-                      ? { ...team, members: team.members.filter(id => id !== userId) }
-                      : team
-                  ),
-                }
-              : client
-          ),
-          selectedClient: state.selectedClient?.id === clientId
-            ? {
-                ...state.selectedClient,
-                teams: state.selectedClient.teams.map(team =>
-                  team.teamId === teamId
-                    ? { ...team, members: team.members.filter(id => id !== userId) }
-                    : team
-                ),
-              }
-            : state.selectedClient,
-          selectedTeam: state.selectedTeam?.teamId === teamId
-            ? { ...state.selectedTeam, members: state.selectedTeam.members.filter(id => id !== userId) }
-            : state.selectedTeam,
-          error: null,
-        }));
+      removeUserFromTeam: async (clientId: string, teamId: string, userId: string) => {
+        try {
+          set({ isLoading: true, error: null });
+          await teamsApi.removeMember({ userId, teamId });
+          // Refresh team data to get updated member list
+          const { fetchTeamsByClient } = get();
+          await fetchTeamsByClient(clientId);
+          set({ isLoading: false });
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to remove user from team';
+          set({ error: errorMessage, isLoading: false });
+        }
       },
 
       /**
