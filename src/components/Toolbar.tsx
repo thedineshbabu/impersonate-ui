@@ -26,7 +26,8 @@ import {
   FileText,
   HelpCircle,
   Info,
-  Shield
+  Shield,
+  TestTube
 } from 'lucide-react';
 
 interface ToolbarProps {
@@ -104,6 +105,13 @@ const Toolbar: React.FC<ToolbarProps> = ({ onMenuClick }) => {
               >
                 <Shield className="mr-2 h-4 w-4" />
                 <span>Manage Roles</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => handleNavigation('/api-test')} 
+                className={isActiveRoute('/api-test') ? 'bg-accent' : ''}
+              >
+                <TestTube className="mr-2 h-4 w-4" />
+                <span>API Test</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleViewProfile}>

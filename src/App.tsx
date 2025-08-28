@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import { useClientStore } from './stores/clientStore';
-import { getClients } from './data';
 import Layout from './components/Layout';
 import LoginPage from './LoginPage';
 import Dashboard from './Dashboard';
@@ -14,27 +13,27 @@ import ImpersonateUser from './components/ImpersonateUser';
 import Resources from './components/Resources';
 import RoleStepperForm from './components/RoleStepperForm';
 import Products from './components/Products';
+import ApiTest from './components/ApiTest';
 import NotificationToast from './components/NotificationToast';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading, initializeAuth } = useAuthStore();
-  const { setClients } = useClientStore();
+  const { fetchClients } = useClientStore();
 
   // Initialize authentication and load client data
   useEffect(() => {
     const initializeApp = async () => {
       try {
         await initializeAuth();
-        // Load client data
-        const clients = getClients();
-        setClients(clients);
+        // Load client data from API
+        await fetchClients();
       } catch (error) {
         console.error('Failed to initialize app:', error);
       }
     };
 
     initializeApp();
-  }, [initializeAuth, setClients]);
+  }, [initializeAuth, fetchClients]);
 
   if (isLoading) {
     return (
@@ -63,6 +62,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/resources" element={<Resources />} />
         <Route path="/roles" element={<RoleStepperForm />} />
         <Route path="/products" element={<Products />} />
+        <Route path="/api-test" element={<ApiTest />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Layout>

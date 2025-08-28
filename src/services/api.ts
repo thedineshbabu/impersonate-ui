@@ -1,3 +1,7 @@
+import {
+  mockApiClient
+} from './mockApi';
+
 /**
  * API Service Layer
  * Handles all HTTP requests to the backend API
@@ -27,13 +31,42 @@ export interface PaginatedResponse<T> {
 }
 
 /**
+ * Check if backend is available
+ */
+const isBackendAvailable = async (): Promise<boolean> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(3000), // 3 second timeout
+    });
+    return response.ok;
+  } catch (error) {
+    console.warn('Backend not available, using mock data:', error);
+    return false;
+  }
+};
+
+/**
  * HTTP Client with error handling and authentication
  */
 class ApiClient {
   private baseURL: string;
+  private useMockData: boolean = false;
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
+    this.checkBackendAvailability();
+  }
+
+  /**
+   * Check backend availability and set mock data flag
+   */
+  private async checkBackendAvailability() {
+    this.useMockData = !(await isBackendAvailable());
+    if (this.useMockData) {
+      console.info('Using mock data for development');
+    }
   }
 
   /**
@@ -62,6 +95,11 @@ class ApiClient {
    * Generic GET request
    */
   async get<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
+    // Use mock data if backend is not available
+    if (this.useMockData) {
+      return mockApiClient.get<T>(endpoint, params);
+    }
+
     const url = new URL(`${this.baseURL}${endpoint}`);
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
@@ -71,50 +109,89 @@ class ApiClient {
       });
     }
 
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      headers: this.getHeaders(),
-    });
+    try {
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: this.getHeaders(),
+      });
 
-    return this.handleResponse<T>(response);
+      return this.handleResponse<T>(response);
+    } catch (error) {
+      console.warn('API request failed, falling back to mock data:', error);
+      this.useMockData = true;
+      return mockApiClient.get<T>(endpoint, params);
+    }
   }
 
   /**
    * Generic POST request
    */
   async post<T>(endpoint: string, data?: any): Promise<T> {
-    const response = await fetch(`${this.baseURL}${endpoint}`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: data ? JSON.stringify(data) : undefined,
-    });
+    // Use mock data if backend is not available
+    if (this.useMockData) {
+      return mockApiClient.post<T>(endpoint, data);
+    }
 
-    return this.handleResponse<T>(response);
+    try {
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: data ? JSON.stringify(data) : undefined,
+      });
+
+      return this.handleResponse<T>(response);
+    } catch (error) {
+      console.warn('API request failed, falling back to mock data:', error);
+      this.useMockData = true;
+      return mockApiClient.post<T>(endpoint, data);
+    }
   }
 
   /**
    * Generic PUT request
    */
   async put<T>(endpoint: string, data?: any): Promise<T> {
-    const response = await fetch(`${this.baseURL}${endpoint}`, {
-      method: 'PUT',
-      headers: this.getHeaders(),
-      body: data ? JSON.stringify(data) : undefined,
-    });
+    // Use mock data if backend is not available
+    if (this.useMockData) {
+      return mockApiClient.put<T>(endpoint, data);
+    }
 
-    return this.handleResponse<T>(response);
+    try {
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: data ? JSON.stringify(data) : undefined,
+      });
+
+      return this.handleResponse<T>(response);
+    } catch (error) {
+      console.warn('API request failed, falling back to mock data:', error);
+      this.useMockData = true;
+      return mockApiClient.put<T>(endpoint, data);
+    }
   }
 
   /**
    * Generic DELETE request
    */
   async delete<T>(endpoint: string): Promise<T> {
-    const response = await fetch(`${this.baseURL}${endpoint}`, {
-      method: 'DELETE',
-      headers: this.getHeaders(),
-    });
+    // Use mock data if backend is not available
+    if (this.useMockData) {
+      return mockApiClient.delete<T>(endpoint);
+    }
 
-    return this.handleResponse<T>(response);
+    try {
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'DELETE',
+        headers: this.getHeaders(),
+      });
+
+      return this.handleResponse<T>(response);
+    } catch (error) {
+      console.warn('API request failed, falling back to mock data:', error);
+      this.useMockData = true;
+      return mockApiClient.delete<T>(endpoint);
+    }
   }
 }
 

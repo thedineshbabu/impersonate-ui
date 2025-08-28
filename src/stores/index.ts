@@ -4,7 +4,7 @@
  */
 
 // Auth Store
-export { useAuthStore } from './authStore';
+export { useAuthStore, useCurrentUser } from './authStore';
 export type { AuthState } from './authStore';
 
 // Client Store
@@ -28,8 +28,15 @@ export { useTeamStore, useTeamsByClient, useTeamsByProduct, useTeamsByType, useS
 export type { TeamState, Team, TeamMember } from './teamStore';
 
 // UI Store
-export { useUIStore } from './uiStore';
-export type { UIState } from './uiStore';
+export { 
+  useUIStore, 
+  useSuccessNotification, 
+  useErrorNotification, 
+  useWarningNotification, 
+  useInfoNotification, 
+  useLoadingState 
+} from './uiStore';
+export type { UIState, Notification, Modal } from './uiStore';
 
 // API Service
 export { 

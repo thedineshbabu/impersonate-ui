@@ -28,7 +28,7 @@ const ZustandExample: React.FC = () => {
   const currentUser = useCurrentUser();
   
   // Client store hooks
-  const { clients, selectedClient, selectClient, addClient } = useClientStore();
+  const { clients, selectedClient, selectClient } = useClientStore();
   
   // UI store hooks
   const { sidebarOpen, toggleSidebar, setGlobalLoading } = useUIStore();
